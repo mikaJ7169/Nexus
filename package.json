@@ -1,0 +1,33 @@
+{
+  "name": "nexus-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "NEXUS — Hub personnel : emploi du temps, rappels et lanceur d'applications (Windows / macOS / Linux)",
+  "main": "main.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.nexus.hub",
+    "productName": "NEXUS",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "renderer/**/*", "assets/**/*", "package.json"],
+    "win": { "target": ["nsis"], "icon": "assets/icon.png" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NEXUS"
+    },
+    "mac": { "target": ["dmg"], "icon": "assets/icon.png", "category": "public.app-category.productivity" },
+    "linux": { "target": ["AppImage"], "icon": "assets/icon.png", "category": "Utility" }
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}
