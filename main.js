@@ -1,27 +1,93 @@
-const { app, BrowserWindow, ipcMain, Notification, shell, dialog, Menu, webUtils } = require('electron');
+const { app, BrowserWindow, ipcMain, Notification, shell, dialog, Menu, webUtils, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const isWin = process.platform === 'win32';
 const isMac = process.platform === 'darwin';
 let win = null;
 
-function filesDir() {
-  return path.join(app.getPath('documents'), 'NEXUS');
-}
-function ensureFilesDir() {
-  fs.mkdirSync(filesDir(), { recursive: true });
-}
+/* ---------- Dossier de fichiers partagés ---------- */
+function filesDir() { return path.join(app.getPath('documents'), 'NEXUS'); }
+function ensureFilesDir() { fs.mkdirSync(filesDir(), { recursive: true }); }
 function safeFilesPath(name) {
   const p = path.join(filesDir(), path.basename(String(name || '')));
   if (!p.startsWith(filesDir() + path.sep)) throw new Error('Nom de fichier invalide');
   return p;
 }
 
+/* ---------- Mode auto-masqué (bandeau haut d'écran, couvre la barre des tâches) ---------- */
+let autohideOn = false;
+let pollTimer = null, hideTimer = null, slideTimer = null;
+
+function stopSlide() { if (slideTimer) { clearInterval(slideTimer); slideTimer = null; } }
+function stopHide() { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } }
+
+function slideTo(targetY) {
+  if (!win) return;
+  stopSlide();
+  const b = win.getBounds();
+  const from = b.y, steps = 14, dur = 240;
+  let i = 0;
+  slideTimer = setInterval(() => {
+    i++;
+    const e = 1 - Math.pow(1 - i / steps, 3);
+    const bb = win.getBounds();
+    win.setBounds({ x: bb.x, y: Math.round(from + (targetY - from) * e), width: bb.width, height: bb.height });
+    if (i >= steps) stopSlide();
+  }, dur / steps);
+}
+
+function poll() {
+  if (!win || !autohideOn) return;
+  const p = screen.getCursorScreenPoint();
+  const d = screen.getDisplayNearestPoint(p);
+  const b = win.getBounds();
+  const shown = b.y <= d.bounds.y;
+  if (!shown) {
+    if (p.y <= d.bounds.y + 8) slideTo(d.bounds.y);
+  } else {
+    const inside = p.x >= b.x && p.x <= b.x + b.width && p.y >= b.y && p.y <= b.y + b.height;
+    if (!inside) {
+      if (!hideTimer) hideTimer = setTimeout(() => {
+        hideTimer = null;
+        if (!win) return;
+        const dd = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+        const bb = win.getBounds();
+        slideTo(dd.bounds.y - (bb.height - 12));
+      }, 700);
+    } else stopHide();
+  }
+}
+
+function setAutohide(on) {
+  autohideOn = !!on;
+  if (!win) return autohideOn;
+  stopSlide(); stopHide();
+  if (autohideOn) {
+    const d = screen.getPrimaryDisplay();
+    win.setAlwaysOnTop(true, 'screen-saver');
+    win.setResizable(false);
+    win.setBounds({ x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height });
+    if (!pollTimer) pollTimer = setInterval(poll, 120);
+  } else {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    win.setAlwaysOnTop(false);
+    win.setResizable(true);
+    win.setBounds({ width: 1280, height: 800 });
+    win.center();
+  }
+  win.webContents.send('autohide-changed', autohideOn);
+  return autohideOn;
+}
+
+/* ---------- Tuiles par défaut ---------- */
 function defaultApps() {
+  const vibe = { name: 'Vibe · Mistral', kind: 'url', cat: 'lien', target: 'https://vibe.mistral.ai', icon: '🟠' };
   if (isWin) {
     return [
+      vibe,
+      { name: 'Steam', kind: 'app', cat: 'jeu', target: 'steam', icon: '🎮' },
       { name: 'Explorateur de fichiers', kind: 'app', cat: 'app', target: 'explorer', icon: '🗂️' },
       { name: 'Bloc-notes', kind: 'app', cat: 'app', target: 'notepad', icon: '📝' },
       { name: 'Calculatrice', kind: 'app', cat: 'app', target: 'calc', icon: '🧮' },
@@ -30,10 +96,8 @@ function defaultApps() {
       { name: 'Paint', kind: 'app', cat: 'app', target: 'mspaint', icon: '🎨' },
       { name: 'Microsoft Edge', kind: 'app', cat: 'app', target: 'msedge', icon: '🌐' },
       { name: 'VS Code', kind: 'app', cat: 'app', target: 'code', icon: '💻' },
-      { name: 'Steam', kind: 'app', cat: 'jeu', target: 'steam', icon: '🎮' },
       { name: 'Paramètres Windows', kind: 'link', cat: 'lien', target: 'ms-settings:', icon: '⚙️' },
       { name: 'Microsoft Store', kind: 'link', cat: 'lien', target: 'ms-windows-store:', icon: '🛍️' },
-      { name: 'Vibe · Mistral', kind: 'url', cat: 'lien', target: 'https://vibe.mistral.ai', icon: '🟠' },
       { name: 'Gmail', kind: 'url', cat: 'lien', target: 'https://mail.google.com', icon: '📧' },
       { name: 'YouTube', kind: 'url', cat: 'lien', target: 'https://www.youtube.com', icon: '▶️' },
       { name: 'GitHub', kind: 'url', cat: 'lien', target: 'https://github.com', icon: '🐙' },
@@ -42,27 +106,23 @@ function defaultApps() {
   }
   if (isMac) {
     return [
+      vibe,
+      { name: 'Steam', kind: 'app', cat: 'jeu', target: 'Steam', icon: '🎮' },
       { name: 'Finder', kind: 'app', cat: 'app', target: 'Finder', icon: '🗂️' },
       { name: 'Terminal', kind: 'app', cat: 'app', target: 'Terminal', icon: '⌨️' },
       { name: 'Safari', kind: 'app', cat: 'app', target: 'Safari', icon: '🧭' },
-      { name: 'Mail', kind: 'app', cat: 'app', target: 'Mail', icon: '📧' },
-      { name: 'Notes', kind: 'app', cat: 'app', target: 'Notes', icon: '📝' },
-      { name: 'Calendrier', kind: 'app', cat: 'app', target: 'Calendar', icon: '📅' },
       { name: 'VS Code', kind: 'app', cat: 'app', target: 'Visual Studio Code', icon: '💻' },
-      { name: 'Steam', kind: 'app', cat: 'jeu', target: 'Steam', icon: '🎮' },
-      { name: 'Vibe · Mistral', kind: 'url', cat: 'lien', target: 'https://vibe.mistral.ai', icon: '🟠' },
       { name: 'Gmail', kind: 'url', cat: 'lien', target: 'https://mail.google.com', icon: '📧' },
       { name: 'YouTube', kind: 'url', cat: 'lien', target: 'https://www.youtube.com', icon: '▶️' },
       { name: 'GitHub', kind: 'url', cat: 'lien', target: 'https://github.com', icon: '🐙' }
     ];
   }
   return [
+    vibe,
+    { name: 'Steam', kind: 'app', cat: 'jeu', target: 'steam', icon: '🎮' },
     { name: 'Gestionnaire de fichiers', kind: 'app', cat: 'app', target: 'nautilus', icon: '🗂️' },
     { name: 'Terminal', kind: 'app', cat: 'app', target: 'gnome-terminal', icon: '⌨️' },
-    { name: 'Navigateur', kind: 'app', cat: 'app', target: 'xdg-open', icon: '🌐', args: ['https://www.google.com'] },
     { name: 'VS Code', kind: 'app', cat: 'app', target: 'code', icon: '💻' },
-    { name: 'Steam', kind: 'app', cat: 'jeu', target: 'steam', icon: '🎮' },
-    { name: 'Vibe · Mistral', kind: 'url', cat: 'lien', target: 'https://vibe.mistral.ai', icon: '🟠' },
     { name: 'Gmail', kind: 'url', cat: 'lien', target: 'https://mail.google.com', icon: '📧' },
     { name: 'YouTube', kind: 'url', cat: 'lien', target: 'https://www.youtube.com', icon: '▶️' },
     { name: 'GitHub', kind: 'url', cat: 'lien', target: 'https://github.com', icon: '🐙' }
@@ -76,7 +136,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 640,
     frame: false,
-    backgroundColor: '#f4f4f6',
+    backgroundColor: '#f2f2f4',
     title: 'NEXUS',
     icon: path.join(__dirname, 'assets', 'icon.png'),
     show: false,
@@ -92,11 +152,12 @@ function createWindow() {
   win.on('maximize', () => win.webContents.send('win-maximized', true));
   win.on('unmaximize', () => win.webContents.send('win-maximized', false));
   if (process.env.NEXUS_DEV) win.webContents.openDevTools();
-  win.on('closed', () => { win = null; });
+  win.on('closed', () => { win = null; stopSlide(); stopHide(); if (pollTimer) clearInterval(pollTimer); });
 }
 
 ipcMain.handle('platform', () => process.platform);
 ipcMain.handle('defaults', () => defaultApps());
+ipcMain.handle('autohide:set', (_e, on) => setAutohide(on));
 
 ipcMain.handle('notify', (_e, title, body) => {
   if (!Notification.isSupported()) return false;
@@ -107,6 +168,35 @@ ipcMain.handle('notify', (_e, title, body) => {
   });
   n.show();
   return true;
+});
+
+/* ---------- Icônes réelles des applis / sites ---------- */
+function domainOf(url) {
+  try { return new URL(String(url)).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+ipcMain.handle('app:icon', async (_e, item) => {
+  if (!item) return null;
+  if (item.kind === 'url' || item.kind === 'link') {
+    const d = domainOf(item.target);
+    return d ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(d)}&sz=128` : null;
+  }
+  let p = String(item.target || '').trim();
+  try {
+    if (isWin && !/\.(exe|lnk)$/i.test(p) && !p.includes('\\')) {
+      const r = spawnSync('cmd.exe', ['/c', 'where', p], { encoding: 'utf8' });
+      if (r.status === 0) { const first = String(r.stdout || '').split(/\r?\n/)[0].trim(); if (first) p = first; }
+    } else if (isMac && !p.endsWith('.app')) {
+      const cand = `/Applications/${p}.app`;
+      if (fs.existsSync(cand)) p = cand;
+    } else if (!isWin && !isMac && !p.includes('/')) {
+      const r = spawnSync('which', [p], { encoding: 'utf8' });
+      if (r.status === 0) p = String(r.stdout || '').trim();
+    }
+    if (!p || !fs.existsSync(p)) return null;
+    const img = await app.getFileIcon(p, { size: 'large' });
+    if (img && !img.isEmpty()) return img.toDataURL();
+  } catch { /* icon indisponible */ }
+  return null;
 });
 
 ipcMain.handle('pick-app', async () => {
@@ -166,7 +256,7 @@ ipcMain.handle('launch-app', async (_e, item) => {
   }
 });
 
-/* ---------- Dossier de fichiers partagés (Documents/NEXUS) ---------- */
+/* ---------- Fichiers partagés (Documents/NEXUS) ---------- */
 ipcMain.handle('files:dir', () => { ensureFilesDir(); return filesDir(); });
 ipcMain.handle('files:list', () => {
   ensureFilesDir();
@@ -214,7 +304,7 @@ ipcMain.handle('app:read-file', (_e, name) => {
 });
 
 ipcMain.on('win-min', () => { if (win) win.minimize(); });
-ipcMain.on('win-max', () => { if (win) win.isMaximized() ? win.unmaximize() : win.maximize(); });
+ipcMain.on('win-max', () => { if (win && !autohideOn) win.isMaximized() ? win.unmaximize() : win.maximize(); });
 ipcMain.on('win-close', () => { if (win) win.close(); });
 
 const gotLock = app.requestSingleInstanceLock();

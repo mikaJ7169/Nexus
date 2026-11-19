@@ -2,13 +2,17 @@
 
 Une appli de bureau (Windows / macOS / Linux) qui regroupe :
 
+- 🚀 **Hub d'apps** (en premier dans le menu) — tes **jeux** 🎮, **applis** 💻 et **liens** 🔗 avec leurs **vraies icônes** (favicon du site, ou icône extraite du `.exe`), accès direct à **Vibe** inclus
 - 📅 **Emploi du temps** — vue semaine cliquable + **import de fichiers `.ics`** (glisser-déposer l'edt de l'école)
 - ⏰ **Rappels** — notifications natives Windows à l'heure dite (+ sonnerie)
-- 🚀 **Hub d'apps** — tes **jeux** 🎮, **applis** 💻 et **liens** 🔗 (dont un accès direct à **Vibe**) organisés par catégories
-- 📁 **Fichiers** — glisse-dépose des fichiers n'importe où dans l'app : ils landen dans `Documents\NEXUS`, un dossier partagé auquel Vibe a aussi accès (pour y déposer / piocher des fichiers)
+- 📁 **Fichiers** — glisse-dépose des fichiers n'importe où dans l'app : ils vont dans `Documents\NEXUS`, dossier partagé auquel Vibe a aussi accès
 - 💼 **Portfolio** — ton portfolio **pro** (URL) et ton portfolio **perso** (cartes alimentées via `portfolio.json`)
 
-Design clair **« liquid glass » façon Apple** : fond blanc/gris, verre dépoli translucide, accents **orange** dégradés, goutte-logo animée, particules et micro-animations fluides. Polices Outfit (titres) + Inter (texte).
+Navigation par **page déroulante** (bouton ☰ en haut à gauche, hub en 01). **4 thèmes** au choix dans le menu : Clair·Orange (principal, avec chrome noir/gris), Graphite (sombre), Néon, Glacier.
+
+Design **« liquid glass » façon Apple** : verre translucide à fort flou, reflet spéculaire qui suit la souris, bord lumineux, ombres douces, goutte-logo animée. Polices **Outfit** (titres, grosses tailles affirmées) + **Inter** (texte). Listes déroulantes 100 % thémées (plus de popups natifs blancs).
+
+**Mode auto-masqué** (menu → Affichage) : la fenêtre recouvre tout l'écran (barre des tâches Windows cachée derrière, `alwaysOnTop`) et se **réduit en fine bande en haut** quand la souris s'en va ; elle **réapparaît quand la souris touche le bord supérieur** de l'écran.
 
 ## Installation sur ton PC (Windows)
 
@@ -47,6 +51,8 @@ npm run dist     # installateur : .dmg (macOS) ou .AppImage (Linux)
 
 ## Utilisation
 
+Navigation : bouton **☰ MENU** (haut à gauche) → grande page déroulante, **Hub d'apps en 01**. Thèmes, affichage auto-masqué et raccourci Vibe dans le panneau de droite du menu.
+
 - **Emploi du temps** : boutons ‹ › pour changer de semaine, « Aujourd'hui » pour revenir. Clique sur une case vide → formulaire (titre, jour, horaires, couleur). Clique sur un événement → modifier / supprimer. **Import .ics** : bouton « 📥 Importer .ics » ou glisse directement le fichier `.ics` de ton école n'importe où dans la fenêtre (les cours récurrents RRULE sont dépliés automatiquement, les doublons sont ignorés).
 - **Rappels** : titre + date + heure + sonnerie. À l'heure dite : notification Windows + bip + toast dans l'app. Coche pour terminer, « ↻ 10 min » pour reporter.
 - **Hub d'apps** : filtres par catégorie (🎮 Jeux / 💻 Apps / 🔗 Liens). Clique une tuile pour lancer. « ＋ Ajouter » → nom, **catégorie**, type (Application du PC / Lien web / Lien système), cible : une commande (`steam`, `code`, `notepad`…) ou un chemin complet vers un `.exe` (bouton « Parcourir… »), et un emoji. ✏️ / 🗑 au survol pour modifier / supprimer. La tuile **🟠 Vibe · Mistral** ouvre Vibe directement.
@@ -66,10 +72,11 @@ Nexus/
 ├── main.js               # processus principal : fenêtre, notifications, lancement d'apps, dossier fichiers
 ├── preload.js            # pont sécurisé renderer ↔ main
 ├── renderer/
-│   ├── index.html        # coquille (6 vues + barre de titre)
-│   ├── style.css         # design clair "liquid glass" orange
+│   ├── index.html        # coquille (6 vues + page déroulante + barre de titre)
+│   ├── style.css         # 4 thèmes + vrai liquid glass (variables CSS)
+│   ├── theme.js          # applique le thème avant le 1er rendu
 │   ├── ics.js            # parseur .ics (VEVENT, RRULE…)
-│   └── app.js            # logique : emploi du temps, rappels, hub, fichiers, portfolio
+│   └── app.js            # logique : menu, thèmes, emploi du temps, rappels, hub, fichiers, portfolio
 ├── assets/icon.png       # icône de l'app (goutte orange)
 └── scripts/make-icon.js  # régénère l'icône (node scripts/make-icon.js)
 ```

@@ -1,8 +1,8 @@
 {
   "name": "nexus-hub",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
-  "description": "NEXUS v2 — Hub personnel clair « liquid glass » orange : emploi du temps (.ics), rappels, hub jeux/apps/liens, fichiers partagés, portfolio (Windows / macOS / Linux)",
+  "description": "NEXUS v3 — Hub personnel « liquid glass » multi-thèmes : menu déroulant, emploi du temps (.ics), rappels, hub jeux/apps/liens avec vraies icônes, fichiers partagés, portfolio, mode auto-masqué (Windows / macOS / Linux)",
   "main": "main.js",
   "license": "MIT",
   "scripts": {
