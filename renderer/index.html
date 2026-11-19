@@ -7,17 +7,29 @@
 <title>NEXUS — Hub personnel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <canvas id="bg"></canvas>
-<div class="glow glow-a"></div>
-<div class="glow glow-b"></div>
+<div class="blob blob-a"></div>
+<div class="blob blob-b"></div>
+<div class="blob blob-c"></div>
 
 <header id="titlebar">
   <div class="brand">
-    <span class="brand-mark">◆</span>
+    <svg class="logo" viewBox="0 0 48 48" aria-hidden="true">
+      <defs>
+        <linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#ffb340"/>
+          <stop offset="0.55" stop-color="#ff8a00"/>
+          <stop offset="1" stop-color="#ff5f00"/>
+        </linearGradient>
+      </defs>
+      <path class="logo-drop" d="M24 3.5c7.6 9.6 13.5 15.9 13.5 23.5a13.5 13.5 0 1 1-27 0C10.5 19.4 16.4 13.1 24 3.5z" fill="url(#lg)"/>
+      <ellipse cx="18.5" cy="27" rx="4.6" ry="7.6" fill="rgba(255,255,255,0.55)" transform="rotate(-16 18.5 27)"/>
+      <circle cx="30.5" cy="33.5" r="2.1" fill="rgba(255,255,255,0.35)"/>
+    </svg>
     <span class="brand-name">NEXUS</span>
     <span class="brand-tag">HUB&nbsp;PERSONNEL</span>
   </div>
@@ -48,8 +60,16 @@
       <svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.2H22l-6 4.6 2.3 7.2-6.3-4.5-6.3 4.5L8 13.8 2 9.2h7.6z"/></svg>
       <span>Hub d'apps</span>
     </button>
+    <button class="nav-item" data-view="files">
+      <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      <span>Fichiers</span>
+    </button>
+    <button class="nav-item" data-view="portfolio">
+      <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      <span>Portfolio</span>
+    </button>
     <div class="side-foot">
-      <span class="dot"></span> NEXUS v1.0 · <span id="platform-label">…</span>
+      <span class="dot"></span> NEXUS v2.0 · <span id="platform-label">…</span>
     </div>
   </nav>
 
@@ -66,19 +86,19 @@
         </div>
       </div>
       <div class="dash-grid">
-        <div class="card">
+        <div class="card glass">
           <h2>📅 Aujourd'hui</h2>
           <div id="dash-events" class="stack"></div>
         </div>
-        <div class="card">
+        <div class="card glass">
           <h2>⏰ Prochains rappels</h2>
           <div id="dash-reminders" class="stack"></div>
         </div>
-        <div class="card">
+        <div class="card glass">
           <h2>🚀 Accès rapide</h2>
           <div id="dash-apps" class="mini-tiles"></div>
         </div>
-        <div class="card">
+        <div class="card glass">
           <h2>📊 En bref</h2>
           <div id="dash-stats" class="stats"></div>
         </div>
@@ -89,17 +109,19 @@
       <div class="view-head">
         <div>
           <h1>Emploi du temps</h1>
-          <p class="muted">Clique sur une case pour ajouter un événement, sur un événement pour le modifier.</p>
+          <p class="muted">Clique sur une case pour ajouter un événement. Glisse un fichier <code>.ics</code> (edt de l'école) pour l'importer.</p>
         </div>
         <div class="week-nav">
           <button id="week-prev" class="btn ghost" title="Semaine précédente">‹</button>
           <span id="week-label" class="muted"></span>
           <button id="week-next" class="btn ghost" title="Semaine suivante">›</button>
           <button id="week-today" class="btn">Aujourd'hui</button>
+          <button id="ics-import" class="btn">📥 Importer .ics</button>
+          <input id="ics-input" type="file" accept=".ics,text/calendar" multiple hidden>
           <button id="event-add" class="btn primary">+ Événement</button>
         </div>
       </div>
-      <div class="card week-scroll">
+      <div class="card glass week-scroll">
         <div class="week-grid">
           <div class="wg-corner"></div>
           <div class="wg-days" id="wg-days"></div>
@@ -117,14 +139,14 @@
         </div>
         <span class="muted" id="rem-count"></span>
       </div>
-      <form id="reminder-form" class="card form-row">
+      <form id="reminder-form" class="card glass form-row">
         <input id="rem-title" type="text" placeholder="Titre du rappel…" maxlength="80" required>
         <input id="rem-date" type="date" required>
         <input id="rem-time" type="time" required>
         <label class="chk"><input type="checkbox" id="rem-sound" checked><span class="box"></span><span>Sonnerie</span></label>
         <button class="btn primary" type="submit">+ Ajouter</button>
       </form>
-      <div class="card">
+      <div class="card glass">
         <div id="reminder-list" class="rem-list"></div>
       </div>
     </section>
@@ -133,16 +155,55 @@
       <div class="view-head">
         <div>
           <h1>Hub d'apps</h1>
-          <p class="muted">Lance tes applications et tes sites favoris depuis un seul endroit.</p>
+          <p class="muted">Tes jeux favoris 🎮, applis 💻 et liens 🔗 — ajoute-les avec « ＋ Ajouter ».</p>
         </div>
+        <div class="chips" id="hub-filters"></div>
       </div>
       <div id="hub-grid" class="hub-grid"></div>
+    </section>
+
+    <section id="view-files" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Fichiers</h1>
+          <p class="muted">Glisse-dépose des fichiers n'importe où dans NEXUS : ils sont copiés dans <code id="files-dir">…</code> (dossier partagé, accessible aussi depuis Vibe).</p>
+        </div>
+        <div class="row-actions">
+          <button id="files-pick" class="btn">＋ Ajouter…</button>
+          <button id="files-open-dir" class="btn primary">Ouvrir le dossier ↗</button>
+        </div>
+      </div>
+      <div class="card glass dropzone" id="dropzone">
+        <div class="drop-hint" id="drop-hint">⬇ Glisse tes fichiers ici — ou n'importe où dans la fenêtre</div>
+        <div id="files-list" class="files-list"></div>
+      </div>
+    </section>
+
+    <section id="view-portfolio" class="view">
+      <div class="view-head">
+        <div>
+          <h1>Portfolio</h1>
+          <p class="muted">Ton portfolio pro (lien) et ton portfolio perso, alimenté projet par projet.</p>
+        </div>
+      </div>
+      <div class="card glass pro-card">
+        <h2>💼 Portfolio professionnel</h2>
+        <div class="form-row">
+          <input id="pro-url" type="url" placeholder="https://ton-portfolio-pro…">
+          <button id="pro-save" class="btn">Enregistrer</button>
+          <button id="pro-open" class="btn primary">Ouvrir ↗</button>
+        </div>
+      </div>
+      <h2 class="section-sub">🎨 Portfolio perso</h2>
+      <div id="perso-grid" class="perso-grid"></div>
     </section>
   </main>
 </div>
 
+<div id="drop-overlay"><div class="drop-overlay-inner">⬇ Dépose tes fichiers dans NEXUS</div></div>
 <div id="modal-root"></div>
 <div id="toast-root"></div>
+<script src="ics.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

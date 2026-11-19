@@ -1,0 +1,27 @@
+{
+  "pro": {
+    "titre": "Portfolio professionnel",
+    "url": ""
+  },
+  "perso": {
+    "titre": "Portfolio perso",
+    "projets": [
+      {
+        "titre": "NEXUS — Hub personnel",
+        "desc": "Application de bureau Electron : emploi du temps avec import .ics, rappels avec notifications natives, hub de lancement d'apps/jeux, dossier de fichiers partagé et portfolio intégré. Thème « liquid glass » clair/orange.",
+        "tech": ["Electron", "JavaScript", "CSS", "Node.js"],
+        "lien": "https://github.com/mikaJ7169/Nexus",
+        "date": "2026-11",
+        "emoji": "🟠"
+      },
+      {
+        "titre": "À compléter",
+        "desc": "Ce bloc est un exemple de projet perso. Vibe remplacera cette entrée par tes vrais projets (jeux, sites, applis, expériences pro) — il suffit de mettre à jour ce fichier portfolio.json.",
+        "tech": ["…"],
+        "lien": "",
+        "date": "",
+        "emoji": "🚀"
+      }
+    ]
+  }
+}

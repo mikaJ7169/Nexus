@@ -19,21 +19,29 @@
   const HOUR_START = 6;
   const HOUR_END = 23;
   const ROW_H = 44;
-  const COLORS = ['#22d3ee', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185'];
+  const COLORS = ['#ff7a00', '#ff9e2c', '#8b5cf6', '#10b981', '#3b82f6', '#ef4444'];
+  const CATS = [
+    { id: 'all', label: '✦ Tous' },
+    { id: 'jeu', label: '🎮 Jeux' },
+    { id: 'app', label: '💻 Apps' },
+    { id: 'lien', label: '🔗 Liens' }
+  ];
+  const CAT_LABEL = { jeu: 'Jeu', app: 'Application', lien: 'Lien' };
 
   const BROWSER_DEFAULTS = [
-    { name: 'Gmail', kind: 'url', target: 'https://mail.google.com', icon: '📧' },
-    { name: 'YouTube', kind: 'url', target: 'https://www.youtube.com', icon: '▶️' },
-    { name: 'GitHub', kind: 'url', target: 'https://github.com', icon: '🐙' },
-    { name: 'Google Drive', kind: 'url', target: 'https://drive.google.com', icon: '☁️' },
-    { name: 'Google', kind: 'url', target: 'https://www.google.com', icon: '🔍' },
-    { name: 'Météo', kind: 'url', target: 'https://www.meteofrance.com', icon: '🌦️' }
+    { name: 'Vibe · Mistral', kind: 'url', cat: 'lien', target: 'https://vibe.mistral.ai', icon: '🟠' },
+    { name: 'Gmail', kind: 'url', cat: 'lien', target: 'https://mail.google.com', icon: '📧' },
+    { name: 'YouTube', kind: 'url', cat: 'lien', target: 'https://www.youtube.com', icon: '▶️' },
+    { name: 'GitHub', kind: 'url', cat: 'lien', target: 'https://github.com', icon: '🐙' },
+    { name: 'Google Drive', kind: 'url', cat: 'lien', target: 'https://drive.google.com', icon: '☁️' },
+    { name: 'Google', kind: 'url', cat: 'lien', target: 'https://www.google.com', icon: '🔍' }
   ];
 
   let events = store.get('nexus.events', []);
   let reminders = store.get('nexus.reminders', []);
   let apps = store.get('nexus.apps', []);
   let weekStart = mondayOf(new Date());
+  let hubFilter = 'all';
 
   /* ---------- Utilitaires de date ---------- */
   function mondayOf(d) {
@@ -45,10 +53,7 @@
   const isToday = (d) => dateStr(d) === dateStr(new Date());
   const fmtMin = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
   const minToHHMM = (m) => fmtMin(m);
-  const hhmmToMin = (s) => {
-    const [h, m] = String(s).split(':').map(Number);
-    return (h || 0) * 60 + (m || 0);
-  };
+  const hhmmToMin = (s) => { const [h, m] = String(s).split(':').map(Number); return (h || 0) * 60 + (m || 0); };
   const fmtShort = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   const fmtDateTime = (ts) => new Date(ts).toLocaleString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   function countdown(ts) {
@@ -58,6 +63,7 @@
     const txt = j > 0 ? `${j} j ${h} h` : h > 0 ? `${h} h ${m} min` : `${m} min`;
     return diff >= 0 ? `dans ${txt}` : `en retard de ${txt}`;
   }
+  const fmtSize = (b) => b < 1024 ? `${b} o` : b < 1048576 ? `${(b / 1024).toFixed(1)} Ko` : `${(b / 1048576).toFixed(1)} Mo`;
 
   /* ---------- Toasts ---------- */
   const toastRoot = $('#toast-root');
@@ -123,10 +129,13 @@
       btn.addEventListener('click', () => {
         $$('.nav-item').forEach((b) => b.classList.toggle('active', b === btn));
         $$('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${btn.dataset.view}`));
-        if (btn.dataset.view === 'planning') renderWeek();
-        if (btn.dataset.view === 'reminders') renderReminders();
-        if (btn.dataset.view === 'dashboard') renderDashboard();
-        if (btn.dataset.view === 'hub') renderHub();
+        const v = btn.dataset.view;
+        if (v === 'planning') renderWeek();
+        if (v === 'reminders') renderReminders();
+        if (v === 'dashboard') renderDashboard();
+        if (v === 'hub') { renderHubFilters(); renderHub(); }
+        if (v === 'files') renderFiles();
+        if (v === 'portfolio') renderPortfolio();
       });
     });
   }
@@ -145,7 +154,7 @@
     setInterval(tick, 1000);
   }
 
-  /* ---------- Fond animé ---------- */
+  /* ---------- Fond animé (thème clair) ---------- */
   function initParticles() {
     const canvas = $('#bg');
     const ctx = canvas.getContext && canvas.getContext('2d');
@@ -154,10 +163,10 @@
     const resize = () => {
       w = canvas.width = window.innerWidth;
       h = canvas.height = window.innerHeight;
-      pts = Array.from({ length: Math.min(70, Math.floor(w / 22)) }, () => ({
+      pts = Array.from({ length: Math.min(60, Math.floor(w / 26)) }, () => ({
         x: Math.random() * w, y: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25,
-        r: Math.random() * 1.6 + 0.4
+        vx: (Math.random() - 0.5) * 0.22, vy: (Math.random() - 0.5) * 0.22,
+        r: Math.random() * 1.5 + 0.5
       }));
     };
     resize();
@@ -170,7 +179,7 @@
         if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(148, 180, 255, 0.35)';
+        ctx.fillStyle = 'rgba(255, 138, 0, 0.28)';
         ctx.fill();
       }
       for (let i = 0; i < pts.length; i++) {
@@ -181,7 +190,7 @@
             ctx.beginPath();
             ctx.moveTo(pts[i].x, pts[i].y);
             ctx.lineTo(pts[j].x, pts[j].y);
-            ctx.strokeStyle = `rgba(103, 140, 255, ${0.10 * (1 - d / 110)})`;
+            ctx.strokeStyle = `rgba(255, 138, 0, ${0.09 * (1 - d / 110)})`;
             ctx.lineWidth = 0.6;
             ctx.stroke();
           }
@@ -200,10 +209,10 @@
       : '<div class="empty">Rien de prévu aujourd’hui. ✨</div>';
     const upcoming = reminders.filter((r) => !r.done).sort((a, b) => a.at - b.at).slice(0, 5);
     $('#dash-reminders').innerHTML = upcoming.length
-      ? upcoming.map((r) => `<div class="rem-row" style="--c:${r.at - Date.now() < 3600000 ? 'var(--amber)' : 'var(--violet)'}"><span class="n">⏰ ${esc(r.title)}</span><span class="t">${fmtDateTime(r.at)}</span></div>`).join('')
+      ? upcoming.map((r) => `<div class="rem-row" style="--c:${r.at - Date.now() < 3600000 ? 'var(--o1)' : 'var(--o3)'}"><span class="n">⏰ ${esc(r.title)}</span><span class="t">${fmtDateTime(r.at)}</span></div>`).join('')
       : '<div class="empty">Aucun rappel actif.</div>';
     $('#dash-apps').innerHTML = apps.slice(0, 6).map((a) =>
-      `<div class="mini-tile" data-app="${a.id}" style="--c:${a.color || COLORS[0]}"><span class="ic">${a.icon || '🚀'}</span><span>${esc(a.name)}</span></div>`).join('');
+      `<div class="mini-tile" data-app="${a.id}"><span class="ic">${a.icon || '🚀'}</span><span>${esc(a.name)}</span></div>`).join('');
     $$('#dash-apps .mini-tile').forEach((el) => el.addEventListener('click', () => launchApp(apps.find((a) => a.id === el.dataset.app))));
     const active = reminders.filter((r) => !r.done).length;
     $('#dash-stats').innerHTML = `
@@ -232,7 +241,7 @@
     return events.filter((e) => e.date === dateStr(d)).map((e) => {
       const top = (clampMin(e.start) - HOUR_START * 60) / 60 * ROW_H;
       const height = Math.max((clampMin(e.end) - clampMin(e.start)) / 60 * ROW_H, 20);
-      return `<div class="event" data-id="${e.id}" style="top:${top}px;height:${height}px;border-color:${e.color};background:${e.color}1f" title="${esc(e.title)} — ${fmtMin(e.start)} à ${fmtMin(e.end)}">
+      return `<div class="event ${e.src === 'ics' ? 'ics' : ''}" data-id="${e.id}" style="top:${top}px;height:${height}px;border-color:${e.color};background:${e.color}1a" title="${esc(e.title)} — ${fmtMin(e.start)} à ${fmtMin(e.end)}${e.src === 'ics' ? ' (importé .ics)' : ''}">
         <span class="ev-time">${fmtMin(e.start)}–${fmtMin(e.end)}</span><span class="ev-title">${esc(e.title)}</span></div>`;
     }).join('');
   }
@@ -249,6 +258,12 @@
     $('#week-next').addEventListener('click', () => { weekStart.setDate(weekStart.getDate() + 7); renderWeek(); });
     $('#week-today').addEventListener('click', () => { weekStart = mondayOf(new Date()); renderWeek(); });
     $('#event-add').addEventListener('click', () => openEventModal(null));
+    $('#ics-import').addEventListener('click', () => $('#ics-input').click());
+    $('#ics-input').addEventListener('change', (e) => {
+      const files = [...e.target.files];
+      e.target.value = '';
+      if (files.length) importICSFiles(files);
+    });
     wgBody.addEventListener('click', (e) => {
       const evEl = e.target.closest('.event');
       if (evEl) { openEventModal(events.find((ev) => ev.id === evEl.dataset.id)); return; }
@@ -259,6 +274,26 @@
       hour = Math.min(HOUR_END - 1, Math.max(HOUR_START, Math.round(hour * 4) / 4));
       openEventModal(null, Number(col.dataset.idx), Math.floor(hour * 60));
     });
+  }
+
+  async function importICSFiles(fileList) {
+    let added = 0, skipped = 0;
+    for (const f of fileList) {
+      let parsed = [];
+      try { parsed = window.parseICS(await f.text()); } catch { showToast(`Erreur de lecture de ${f.name}`, 'error'); continue; }
+      for (const e of parsed) {
+        const d = e.start;
+        if (!(d instanceof Date) || Number.isNaN(d.getTime())) continue;
+        const startM = d.getHours() * 60 + d.getMinutes();
+        const endM = e.end instanceof Date && e.end > d ? e.end.getHours() * 60 + e.end.getMinutes() : startM + 60;
+        const key = `${e.uid}|${dateStr(d)}|${startM}`;
+        if (events.some((x) => x.icsKey === key)) { skipped++; continue; }
+        events.push({ id: uid(), icsKey: key, src: 'ics', title: e.title || 'Événement', date: dateStr(d), start: startM, end: Math.max(endM, startM + 15), color: COLORS[1] });
+        added++;
+      }
+    }
+    if (added || skipped) { store.set('nexus.events', events); renderWeek(); renderDashboard(); }
+    showToast(`📥 ${added} événement(s) importé(s)${skipped ? ` · ${skipped} doublon(s) ignoré(s)` : ''}`, added ? 'ok' : 'warn');
   }
 
   function openEventModal(existing, dayIdx = null, startMin = null) {
@@ -273,7 +308,7 @@
       color: COLORS[0]
     };
     const dayOptions = days.map((d, i) => `<option value="${dateStr(d)}" ${i === idx ? 'selected' : ''}>${DAY_NAMES[i]} ${fmtShort(d)}</option>`).join('');
-    const swatches = COLORS.map((c) => `<div class="swatch ${c === ev.color ? 'sel' : ''}" data-color="${c}" style="background:${c};color:${c}"></div>`).join('');
+    const swatches = COLORS.map((c) => `<div class="swatch ${c === ev.color ? 'sel' : ''}" data-color="${c}" style="background:${c}"></div>`).join('');
     openModal(`
       <h3>${existing ? 'Modifier l’événement' : 'Nouvel événement'}</h3>
       <div class="form-grid">
@@ -284,7 +319,7 @@
         <div class="field"><label>Fin</label><input id="f-end" type="time" value="${minToHHMM(ev.end)}"></div>
       </div>
       <div class="modal-actions">
-        ${existing ? '<button class="btn danger" id="f-del">Supprimer</button>' : ''}
+        ${existing && existing.src !== 'ics' ? '<button class="btn danger" id="f-del">Supprimer</button>' : ''}
         <button class="btn ghost" id="f-cancel">Annuler</button>
         <button class="btn primary" id="f-save">Enregistrer</button>
       </div>
@@ -427,6 +462,8 @@
   }
 
   /* ---------- Hub ---------- */
+  const catOf = (a) => a.cat || (a.kind === 'app' ? 'app' : 'lien');
+
   async function launchApp(a) {
     if (!a) return;
     if (a.kind === 'app' && !IS_DESKTOP) {
@@ -445,21 +482,29 @@
     }
   }
 
+  function renderHubFilters() {
+    $('#hub-filters').innerHTML = CATS.map((c) => `<button class="chip ${hubFilter === c.id ? 'active' : ''}" data-cat="${c.id}">${c.label}</button>`).join('');
+  }
+
   function renderHub() {
     const grid = $('#hub-grid');
-    grid.innerHTML = apps.map((a, i) => `
-      <div class="tile" data-id="${a.id}" style="--c:${a.color || COLORS[i % COLORS.length]}" tabindex="0" role="button" title="Lancer ${esc(a.name)}">
+    const list = apps.filter((a) => hubFilter === 'all' || catOf(a) === hubFilter);
+    grid.innerHTML = list.map((a, i) => `
+      <div class="tile" data-id="${a.id}" style="--i:${i}" tabindex="0" role="button" title="Lancer ${esc(a.name)}">
         <div class="tile-icon">${a.icon || '🚀'}</div>
         <div class="tile-name">${esc(a.name)}</div>
-        <div class="tile-kind">${a.kind === 'app' ? 'Application' : a.kind === 'url' ? 'Lien web' : 'Lien'}</div>
+        <div class="tile-kind">${CAT_LABEL[catOf(a)] || 'Lien'}</div>
         <div class="tile-actions">
           <button class="icon-btn" data-act="edit" title="Modifier">✏️</button>
           <button class="icon-btn danger" data-act="del" title="Supprimer">🗑</button>
         </div>
       </div>`).join('') + `
-      <div class="tile tile-add" id="tile-add" tabindex="0" role="button" title="Ajouter une application ou un lien">
+      <div class="tile tile-add" id="tile-add" tabindex="0" role="button" title="Ajouter un jeu, une app ou un lien">
         <div class="plus">＋</div><div class="tile-name">Ajouter</div>
       </div>`;
+    if (!list.length) {
+      grid.insertAdjacentHTML('afterbegin', '<div class="empty" style="grid-column:1/-1;padding:10px 4px">Rien dans cette catégorie — ajoute un élément avec « ＋ Ajouter ». 🎮</div>');
+    }
     grid.addEventListener('click', (e) => {
       const add = e.target.closest('#tile-add');
       if (add) { openAppModal(null); return; }
@@ -490,26 +535,43 @@
     });
   }
 
+  function setupHubFilters() {
+    $('#hub-filters').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      hubFilter = chip.dataset.cat;
+      renderHubFilters();
+      renderHub();
+    });
+  }
+
   function openAppModal(existing) {
-    const a = existing || { name: '', kind: 'app', target: '', icon: '🚀' };
+    const a = existing || { name: '', kind: 'app', cat: 'app', target: '', icon: '🚀' };
     openModal(`
       <h3>${existing ? 'Modifier' : 'Ajouter au hub'}</h3>
       <div class="form-grid">
-        <div class="field"><label>Nom</label><input id="a-name" type="text" maxlength="30" placeholder="Mon app" value="${esc(a.name)}"></div>
-        <div class="field"><label>Type</label>
+        <div class="field"><label>Nom</label><input id="a-name" type="text" maxlength="30" placeholder="Mon jeu / mon app" value="${esc(a.name)}"></div>
+        <div class="field"><label>Catégorie</label>
+          <select id="a-cat">
+            <option value="jeu" ${catOf(a) === 'jeu' ? 'selected' : ''}>🎮 Jeu</option>
+            <option value="app" ${catOf(a) === 'app' ? 'selected' : ''}>💻 Application</option>
+            <option value="lien" ${catOf(a) === 'lien' ? 'selected' : ''}>🔗 Lien</option>
+          </select>
+        </div>
+        <div class="field"><label>Type de lancement</label>
           <select id="a-kind">
             <option value="app" ${a.kind === 'app' ? 'selected' : ''}>Application du PC</option>
             <option value="url" ${a.kind === 'url' ? 'selected' : ''}>Lien web (https)</option>
             <option value="link" ${a.kind === 'link' ? 'selected' : ''}>Lien système (ms-settings:…)</option>
           </select>
         </div>
-        <div class="field full" id="a-target-wrap"><label id="a-target-label">${a.kind === 'url' || a.kind === 'link' ? 'Adresse' : 'Commande ou chemin (.exe)'}</label>
+        <div class="field"><label>Icône (emoji)</label><input id="a-icon" type="text" maxlength="4" value="${esc(a.icon)}"></div>
+        <div class="field full"><label id="a-target-label">${a.kind === 'url' || a.kind === 'link' ? 'Adresse' : 'Commande ou chemin (.exe)'}</label>
           <div class="pick-row">
-            <input id="a-target" type="text" maxlength="300" placeholder="${a.kind === 'url' ? 'https://…' : a.kind === 'link' ? 'ms-settings:' : 'ex: code  ·  C:\\Program Files\\…\\app.exe'}" value="${esc(a.target)}">
+            <input id="a-target" type="text" maxlength="300" placeholder="${a.kind === 'url' ? 'https://…' : a.kind === 'link' ? 'ms-settings:' : 'ex: steam  ·  C:\\…\\jeu.exe'}" value="${esc(a.target)}">
             ${a.kind === 'app' && IS_DESKTOP ? '<button class="btn" id="a-pick" type="button">Parcourir…</button>' : ''}
           </div>
         </div>
-        <div class="field"><label>Icône (emoji)</label><input id="a-icon" type="text" maxlength="4" value="${esc(a.icon)}"></div>
       </div>
       <div class="modal-actions">
         <button class="btn ghost" id="a-cancel">Annuler</button>
@@ -519,7 +581,7 @@
     $('#a-kind').addEventListener('change', (e) => {
       const k = e.target.value;
       $('#a-target-label').textContent = k === 'url' || k === 'link' ? 'Adresse' : 'Commande ou chemin (.exe)';
-      $('#a-target').placeholder = k === 'url' ? 'https://…' : k === 'link' ? 'ms-settings:' : 'ex: code  ·  C:\\…\\app.exe';
+      $('#a-target').placeholder = k === 'url' ? 'https://…' : k === 'link' ? 'ms-settings:' : 'ex: steam  ·  C:\\…\\jeu.exe';
     });
     const pick = $('#a-pick');
     if (pick) pick.addEventListener('click', async () => {
@@ -530,18 +592,161 @@
     $('#a-save').addEventListener('click', () => {
       const name = $('#a-name').value.trim();
       const kind = $('#a-kind').value;
+      const cat = $('#a-cat').value;
       const target = $('#a-target').value.trim();
       const icon = $('#a-icon').value.trim() || '🚀';
       if (!name) { showToast('Donne un nom.', 'warn'); return; }
       if (!target) { showToast('Indique une commande, un chemin ou une adresse.', 'warn'); return; }
-      if ((kind === 'url') && !/^https:\/\/.+/i.test(target)) { showToast('Un lien web doit commencer par https://', 'warn'); return; }
-      if (existing) Object.assign(existing, { name, kind, target, icon });
-      else apps.push({ id: uid(), name, kind, target, icon, color: COLORS[apps.length % COLORS.length] });
+      if (kind === 'url' && !/^https:\/\/.+/i.test(target)) { showToast('Un lien web doit commencer par https://', 'warn'); return; }
+      if (existing) Object.assign(existing, { name, kind, cat, target, icon });
+      else apps.push({ id: uid(), name, kind, cat, target, icon, color: COLORS[apps.length % COLORS.length] });
       store.set('nexus.apps', apps);
       closeModal();
       renderHub();
       renderDashboard();
       showToast(existing ? 'Entrée mise à jour.' : `« ${name} » ajouté au hub. 🚀`, 'ok');
+    });
+  }
+
+  /* ---------- Fichiers (dossier partagé Documents/NEXUS) ---------- */
+  const FILE_ICONS = [
+    [/\.(png|jpe?g|gif|webp|svg|bmp)$/i, '🖼️'],
+    [/\.(mp4|mkv|avi|mov|webm)$/i, '🎬'],
+    [/\.(mp3|wav|flac|ogg|m4a)$/i, '🎵'],
+    [/\.(zip|rar|7z|tar|gz)$/i, '📦'],
+    [/\.(pdf)$/i, '📕'],
+    [/\.(docx?|odt|rtf)$/i, '📝'],
+    [/\.(xlsx?|csv|ods)$/i, '📊'],
+    [/\.(pptx?|odp)$/i, '📽️'],
+    [/\.(ics)$/i, '📅'],
+    [/\.(exe|msi|bat|cmd|lnk)$/i, '💿'],
+    [/\.(js|ts|py|json|html?|css|md|txt|log|xml|yaml|yml|sh|java|c|cpp)$/i, '💻'],
+    [/\.(psd|ai|fig|sketch)$/i, '🎨']
+  ];
+  const fileIcon = (name) => {
+    for (const [re, ic] of FILE_ICONS) if (re.test(name)) return ic;
+    return '📄';
+  };
+
+  async function renderFiles() {
+    const list = $('#files-list');
+    if (!IS_DESKTOP) {
+      $('#files-dir').textContent = 'app installée requise';
+      list.innerHTML = '<div class="empty" style="padding:16px 4px">Ouvre NEXUS installé sur ton PC pour déposer et piocher des fichiers dans le dossier partagé. 📁</div>';
+      return;
+    }
+    $('#files-dir').textContent = await window.nexus.filesDir();
+    let files = [];
+    try { files = await window.nexus.filesList(); } catch { files = []; }
+    list.innerHTML = files.length
+      ? files.map((f) => `<div class="file-row" data-name="${esc(f.name)}">
+          <div class="file-ic">${f.isDir ? '📁' : fileIcon(f.name)}</div>
+          <div class="file-main">
+            <div class="file-name">${esc(f.name)}</div>
+            <div class="file-meta">${f.isDir ? 'dossier' : fmtSize(f.size)} · modifié le ${new Date(f.mtime).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+          </div>
+          <div class="rem-actions">
+            <button class="icon-btn" data-act="open" title="Ouvrir">▶</button>
+            <button class="icon-btn" data-act="reveal" title="Voir dans l’explorateur">📂</button>
+            <button class="icon-btn danger" data-act="del" title="Supprimer">🗑</button>
+          </div>
+        </div>`).join('')
+      : '<div class="empty" style="padding:16px 4px">Dossier vide — glisse un fichier ici. 📂</div>';
+  }
+
+  function setupFiles() {
+    $('#files-pick').addEventListener('click', async () => {
+      if (!IS_DESKTOP) return;
+      const copied = await window.nexus.filesPick();
+      if (copied && copied.length) { showToast(`📁 ${copied.length} fichier(s) ajouté(s) : ${copied.slice(0, 3).join(', ')}${copied.length > 3 ? '…' : ''}`, 'ok'); renderFiles(); }
+    });
+    $('#files-open-dir').addEventListener('click', async () => {
+      if (!IS_DESKTOP) return;
+      const r = await window.nexus.openFilesDir();
+      if (r && r.ok === false) showToast(r.error, 'error');
+    });
+    $('#files-list').addEventListener('click', async (e) => {
+      const btn = e.target.closest('[data-act]');
+      const row = e.target.closest('.file-row');
+      if (!btn || !row || !IS_DESKTOP) return;
+      const name = row.dataset.name;
+      const act = btn.dataset.act;
+      if (act === 'open') { const r = await window.nexus.filesOpen(name); if (r && r.ok === false) showToast(r.error, 'error'); }
+      if (act === 'reveal') await window.nexus.filesReveal(name);
+      if (act === 'del') { await window.nexus.filesDelete(name); showToast(`« ${name} » supprimé.`, 'ok'); renderFiles(); }
+    });
+  }
+
+  /* ---------- Glisser-déposer global ---------- */
+  function setupDrop() {
+    let depth = 0;
+    document.addEventListener('dragenter', (e) => { e.preventDefault(); depth++; document.body.classList.add('dropping'); });
+    document.addEventListener('dragleave', (e) => { e.preventDefault(); if (--depth <= 0) { depth = 0; document.body.classList.remove('dropping'); } });
+    document.addEventListener('dragover', (e) => e.preventDefault());
+    document.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      depth = 0;
+      document.body.classList.remove('dropping');
+      const files = [...(e.dataTransfer && e.dataTransfer.files || [])];
+      if (!files.length) return;
+      const ics = files.filter((f) => f.name.toLowerCase().endsWith('.ics'));
+      const others = files.filter((f) => !f.name.toLowerCase().endsWith('.ics'));
+      if (ics.length) await importICSFiles(ics);
+      if (others.length) {
+        if (IS_DESKTOP) {
+          const copied = await window.nexus.dropFiles(others);
+          renderFiles();
+          showToast(`📁 ${copied.length} fichier(s) déposé(s) dans le dossier NEXUS`, 'ok');
+        } else {
+          showToast('💻 Le dépôt de fichiers nécessite NEXUS installé sur ton PC.', 'warn');
+        }
+      }
+    });
+  }
+
+  /* ---------- Portfolio ---------- */
+  async function renderPortfolio() {
+    const grid = $('#perso-grid');
+    $('#pro-url').value = store.get('nexus.proUrl', '');
+    let data = null;
+    try {
+      if (IS_DESKTOP) data = JSON.parse(await window.nexus.readAppFile('portfolio.json'));
+      else if (typeof fetch === 'function') { const r = await fetch('portfolio.json'); if (r.ok) data = await r.json(); }
+    } catch { data = null; }
+    const projets = data && data.perso && Array.isArray(data.perso.projets) ? data.perso.projets : [];
+    grid.innerHTML = projets.length
+      ? projets.map((p) => `<div class="proj-card">
+          <div class="proj-head">
+            <span class="proj-emoji">${p.emoji || '🚀'}</span>
+            <div>
+              <div class="proj-title">${esc(p.titre || 'Projet')}</div>
+              <div class="proj-date">${esc(p.date || '')}</div>
+            </div>
+          </div>
+          <div class="proj-desc">${esc(p.desc || '')}</div>
+          <div class="tech-chips">${(p.tech || []).map((t) => `<span class="tech-chip">${esc(t)}</span>`).join('')}</div>
+          ${p.lien ? `<a class="proj-link" href="${esc(p.lien)}" data-lien="${esc(p.lien)}">Voir le projet ↗</a>` : ''}
+        </div>`).join('')
+      : '<div class="card glass" style="grid-column:1/-1"><div class="empty">Aucun projet perso pour le moment — ils apparaîtront ici (alimentés via portfolio.json). 🎨</div></div>';
+    $$('#perso-grid .proj-link').forEach((a) => a.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (IS_DESKTOP) window.nexus.openUrl(a.dataset.lien);
+      else window.open(a.dataset.lien, '_blank', 'noopener');
+    }));
+  }
+
+  function setupPortfolio() {
+    $('#pro-save').addEventListener('click', () => {
+      const url = $('#pro-url').value.trim();
+      if (url && !/^https:\/\/.+/i.test(url)) { showToast('L’URL doit commencer par https://', 'warn'); return; }
+      store.set('nexus.proUrl', url);
+      showToast(url ? 'Portfolio pro enregistré. 💼' : 'URL effacée.', 'ok');
+    });
+    $('#pro-open').addEventListener('click', async () => {
+      const url = store.get('nexus.proUrl', '') || $('#pro-url').value.trim();
+      if (!url) { showToast('Colle d’abord l’URL de ton portfolio pro.', 'warn'); return; }
+      if (IS_DESKTOP) { const r = await window.nexus.openUrl(url); if (r && r.ok === false) showToast(r.error, 'error'); }
+      else window.open(url, '_blank', 'noopener');
     });
   }
 
@@ -553,6 +758,10 @@
     initParticles();
     setupPlanning();
     setupReminders();
+    setupHubFilters();
+    setupFiles();
+    setupDrop();
+    setupPortfolio();
     $('#platform-label').textContent = IS_DESKTOP ? await window.nexus.platform() : 'mode navigateur';
     if (!store.get('nexus.seeded', false)) {
       const defs = IS_DESKTOP ? await window.nexus.defaults() : BROWSER_DEFAULTS;
@@ -560,17 +769,21 @@
       store.set('nexus.apps', apps);
       store.set('nexus.seeded', true);
     } else {
-      apps = store.get('nexus.apps', []);
+      apps = store.get('nexus.apps', []).map((a) => ({ cat: catOf(a), ...a }));
+      store.set('nexus.apps', apps);
     }
     events = store.get('nexus.events', []);
     reminders = store.get('nexus.reminders', []);
     renderWeek();
     renderReminders();
+    renderHubFilters();
     renderHub();
     renderDashboard();
     updateBadge();
     checkReminders();
-    if (!IS_DESKTOP) showToast('🌐 Mode navigateur : ouvre NEXUS installé sur ton PC pour lancer des applications et recevoir les notifications Windows.', 'warn');
+    renderFiles();
+    renderPortfolio();
+    if (!IS_DESKTOP) showToast('🌐 Mode navigateur : lance NEXUS installé sur ton PC pour les applis locales, les fichiers, les notifications et l’import .ics.', 'warn');
   }
 
   init();

@@ -1,4 +1,4 @@
-// Génère assets/icon.png (512x512) sans aucune dépendance : losange néon sur fond dégradé.
+// Génère assets/icon.png (512x512) sans dépendance : goutte orange "liquid glass" sur fond clair.
 const zlib = require('zlib');
 const fs = require('fs');
 const path = require('path');
@@ -6,38 +6,65 @@ const path = require('path');
 const W = 512, H = 512;
 const px = new Uint8Array(W * H * 4);
 
-const c0 = [5, 6, 15];        // haut
-const c1 = [27, 17, 64];      // bas
-const cyan = [34, 211, 238];
-const violet = [167, 139, 250];
-const pink = [244, 114, 182];
+const top = [253, 253, 254];
+const bottom = [255, 232, 214];
+const o1 = [255, 95, 0];     // bas de la goutte
+const o3 = [255, 179, 64];   // haut de la goutte
 
 function lerp(a, b, t) { return a + (b - a) * t; }
-function mix3(a, b, c, t) { return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]; }
+function mix(a, b, t) { return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)]; }
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+
+// Goutte : union d'un cercle (centre bas) et d'un triangle (pointe en haut)
+const CX = 256, CY = 300, R = 128;
+const AX = 256, AY = 58;          // pointe
+const BL = { x: CX - 108, y: CY }, BR = { x: CX + 108, y: CY };
+
+function distSeg(px_, py_, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay;
+  const t = clamp01(((px_ - ax) * dx + (py_ - ay) * dy) / (dx * dx + dy * dy));
+  const x = ax + t * dx, y = ay + t * dy;
+  return Math.hypot(px_ - x, py_ - y);
+}
+function dropletSDF(x, y) {
+  const dCircle = Math.hypot(x - CX, y - CY) - R;
+  const dTri = Math.min(
+    distSeg(x, y, AX, AY, BL.x, BL.y),
+    distSeg(x, y, AX, AY, BR.x, BR.y),
+    distSeg(x, y, BL.x, BL.y, BR.x, BR.y)
+  );
+  const inTri = (y >= AY) && (Math.abs(x - AX) <= (y - AY) / (CY - AY) * 108);
+  const tri = inTri ? -dTri : dTri;
+  return Math.min(dCircle, tri);
+}
 
 for (let y = 0; y < H; y++) {
   for (let x = 0; x < W; x++) {
     const t = y / H;
-    let col = mix3(c0, c1, c1, t);
-    // halo radial central
-    const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const glow = Math.max(0, 1 - dist / 0.85);
-    col = [lerp(col[0], 76, glow * 0.35), lerp(col[1], 58, glow * 0.3), lerp(col[2], 150, glow * 0.45)];
-    // losange (distance de Manhattan normalisée)
-    const d = (Math.abs(x - W / 2) + Math.abs(y - H / 2)) / 210;
-    const ring = Math.abs(d - 1);
-    let alpha = 0;
-    if (ring < 0.055) alpha = 1;
-    else if (ring < 0.16) alpha = Math.max(0, 1 - (ring - 0.055) / 0.105) * 0.35; // halo
-    // petit losange plein au centre
-    const dc = (Math.abs(x - W / 2) + Math.abs(y - H / 2)) / 52;
-    if (dc < 1) alpha = Math.max(alpha, dc < 0.8 ? 1 : (1 - dc) / 0.2 * 0.9);
-    const grad = mix3(cyan, violet, pink, t);
+    let col = mix(top, bottom, t);
+    // halo doux derrière la goutte
+    const dc = Math.hypot((x - CX) / 220, (y - (CY - 20)) / 220);
+    const halo = Math.max(0, 1 - dc);
+    col = mix(col, [255, 205, 150], halo * 0.35);
+
+    const d = dropletSDF(x, y);
+    const a = clamp01(0.5 - d / 2.2); // antialiasing
+    if (a > 0) {
+      const g = mix(o3, o1, clamp01((y - AY) / (CY + R - AY)));
+      // reflet verre en haut à gauche de la goutte
+      const gx = x - 205, gy = y - 250;
+      const gloss = Math.max(0, 1 - Math.hypot(gx / 34, gy / 58));
+      let rgb = g;
+      rgb = mix(rgb, [255, 255, 255], gloss * gloss * 0.75 * a);
+      col = mix(col, rgb, a);
+      // léger halo orange autour
+      const rim = Math.max(0, 1 - Math.abs(d) / 14);
+      col = mix(col, [255, 170, 90], rim * (1 - a) * 0.5);
+    }
     const i = (y * W + x) * 4;
-    px[i] = lerp(col[0], grad[0], alpha);
-    px[i + 1] = lerp(col[1], grad[1], alpha);
-    px[i + 2] = lerp(col[2], grad[2], alpha);
+    px[i] = Math.round(col[0]);
+    px[i + 1] = Math.round(col[1]);
+    px[i + 2] = Math.round(col[2]);
     px[i + 3] = 255;
   }
 }

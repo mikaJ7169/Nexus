@@ -1,8 +1,8 @@
 {
   "name": "nexus-hub",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "NEXUS — Hub personnel : emploi du temps, rappels et lanceur d'applications (Windows / macOS / Linux)",
+  "description": "NEXUS v2 — Hub personnel clair « liquid glass » orange : emploi du temps (.ics), rappels, hub jeux/apps/liens, fichiers partagés, portfolio (Windows / macOS / Linux)",
   "main": "main.js",
   "license": "MIT",
   "scripts": {
