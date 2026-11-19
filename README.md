@@ -35,6 +35,19 @@ Design sombre futuriste : verre dépoli, accents néon cyan/violet, particules a
 
    L'installeur se trouve ensuite dans le dossier `dist\` (NEXUS Setup *.exe). Double-clique dessus, puis épingle NEXUS à la barre des tâches / au menu Démarrer.
 
+### ⚠️ Dépannage Windows : « l'exécution de scripts est désactivée »
+
+Si PowerShell affiche `Impossible de charger le fichier ...\npm.ps1, car l'exécution de scripts est désactivée` quand tu tapes `npm install` / `npm start` (Node.js est bien installé, c'est juste la politique de sécurité de PowerShell qui bloque) :
+
+- **Solution rapide** : utilise l'**Invite de commandes (cmd.exe)** à la place de PowerShell : `Win + R` → tape `cmd` → `cd` dans le dossier `Nexus` → `npm install` puis `npm start`.
+- **Solution définitive** : ouvre PowerShell **en tant qu'administrateur** (clic droit sur le menu Démarrer → « Terminal (admin) » ou « Windows PowerShell (admin) ») et autorise les scripts signés/locaux pour ton compte :
+
+  ```powershell
+  Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+  ```
+
+  Confirme avec `O` (oui), puis relance `npm install` et `npm start` dans ce même terminal.
+
 ## macOS / Linux
 
 ```bash
